@@ -2,8 +2,11 @@ package se.lexicon.airlinechatbot.service;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.PromptChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.vectorstore.SearchRequest;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Description;
@@ -26,8 +29,10 @@ public class AssistantServiceImpl implements AssistantService {
     private final BookingService bookingService;
     private final ChatMemory chatMemory;
 
+    private final VectorStore vectorStore;
+
     @Autowired
-    public AssistantServiceImpl(BookingService bookingService, ChatClient.Builder modelBuilder, ChatMemory chatMemory) {
+    public AssistantServiceImpl(BookingService bookingService, ChatClient.Builder modelBuilder, ChatMemory chatMemory,  VectorStore vectorStore) {
 
         String systemInstruction = """
                     You are a customer chat support agent of an airline named "LexFunAirLine."
@@ -43,12 +48,14 @@ public class AssistantServiceImpl implements AssistantService {
 
         this.bookingService = bookingService;
         this.chatMemory = chatMemory;
+        this.vectorStore = vectorStore;
 
         this.chatClient = modelBuilder
                 .defaultSystem(systemInstruction) // System Instructions: Provide context for the chatbot's role and behavior.
                 .defaultFunctions("reserve", "cancel") // Functions: Enable specific function calls triggered by user prompts
                 .defaultAdvisors(
-                        new PromptChatMemoryAdvisor(chatMemory) // Retrieves memory and incorporates it into the prompt’s system text.
+                        new PromptChatMemoryAdvisor(chatMemory), // Retrieves memory and incorporates it into the prompt’s system text.
+                        new QuestionAnswerAdvisor(vectorStore, SearchRequest.defaults())
                 )  // Advisors: Manage chat memory, map function calls, and enhance conversational flow.
                 .build();
     }
